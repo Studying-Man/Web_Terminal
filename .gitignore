@@ -1,8 +1,8 @@
-.idea/
+.idea
 .DS_Store
-node_modules/
-.config.production/
+node_modules
+.config.production
 shinetest.js
 huaxitest.js
 data.json
-tar.gz/
+tar.gz
