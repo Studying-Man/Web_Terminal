@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Terminal</title>
+    <link rel="icon" type="image/x-icon" href="images/terminal.ico"/>
+    <style>
+        html, body {
+            height: 100%
+        }
+
+        body {
+            margin: 0;
+            padding: 10px;
+        }
+
+        body, pre {
+            background: #505050;
+            font-family: Consolas;
+            color: #ffffff;
+            box-sizing: border-box;
+        }
+
+        input {
+            font-size: 18px;
+            width: 1000px;
+        }
+
+        p {
+            border-bottom: 1px solid #404040;
+            height: 20px;
+            line-height: 20px;
+            padding: 5px 0;
+        }
+
+        .progress {
+            margin-top: 5px;
+            width: 500px;
+            height: 8px;
+            border-radius: 3px;
+            background: #303030;
+            opacity: 0;
+            transition: all ease-in 0.5s;
+        }
+
+        .progress .it_p {
+            height: 100%;
+            width: 0;
+            background: #0c7ec6;
+            transition: all ease 0.3s;
+        }
+
+        #codePool {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            top: 170px;
+            bottom: 0;
+            overflow: auto;
+        }
+
+        #codePool pre {
+            display: inline-block;
+            float: left;
+            width: 260px;
+        }
+    </style>
+</head>
+<body>
+
+<h2>------HUAXI------</h2>
+<div style="margin-bottom: 5px;"><span id="nowdir"> </span></div>
+<input type="text" id="cmdStr">
+<br>
+<br>
+<div>
+    <input type="file" style="display: none" id="upfile">
+    <button onclick="upfile.click()">上传文件到此目录</button>
+    <span id="nowFileName"> </span>
+</div>
+<div class="progress" id="pfa">
+    <div class="it_p" id="progress"></div>
+</div>
+
+<div id="codePool">
+    <!--<pre id="codeStr">-->
+
+    <!--</pre>-->
+</div>
+
+<script src="lib/jquery-1.10.2.min.js"></script>
+<script>
+    window.onload = function () {
+        document.getElementById('upfile').onchange = function () {
+            upFileAsync(this.files[0]);
+        };
+
+
+        document.getElementById('cmdStr').focus();
+        const nowdirppp = document.getElementById('nowdir');
+
+        let nowdir = "/home";
+        runCmd(`ls ${nowdir}`);
+        nowdirppp.innerText = nowdir;
+
+        document.onkeydown = function (e) {
+            if (e.keyCode === 13) {
+                let cmdStr = document.getElementById('cmdStr').value;
+
+                const newCmdStr = aninlis(cmdStr);
+                if (newCmdStr) {
+                    runCmd(newCmdStr);
+                }
+            }
+        };
+
+        const specialCmd = ['pm2', 'mpstat'];
+
+
+        function aninlis(cmdStr) {
+            // 去掉所有的空格
+            const f1str = cmdStr.split(' ');
+            const varList = f1str.filter((one) => (Boolean(one) === true));
+
+            let command = varList[0];   // 第一个指令
+            if (specialCmd.indexOf(command) > -1) {
+                return cmdStr;
+            }
+
+            const opts = varList.filter((one) => (one.indexOf('-') === 0)); // 附加参数 -t -h -l 等等
+            let optsArr = [];
+            varList.forEach((one, idx) => {
+                if (one.indexOf('-') === 0) {
+                    optsArr.push( {val: one, idx} );
+                }
+            });
+            // console.log(varList);
+            // console.log(optsArr);
+
+
+            const others = varList.concat([]);
+            others.shift();  // 需要执行的其他语句
+
+            let wordsList = others.filter((one) => (opts.indexOf(one) === -1));  // 去除 附加参数
+            // wordsList 里面是 打开 拷贝 解压/压缩 文件或者文件夹路径
+            // 需要正确处理 这些 路径
+
+            // console.log(command);
+            // console.log(opts);
+            // console.log(wordsList);
+            if (!wordsList.length) {
+                wordsList.push("");
+            }
+
+            wordsList = wordsList.map(formated);
+
+            // console.log(wordsList);
+
+
+            function formated(pos) {
+                let realpos = nowdir;
+                if (pos.substr(0, 2) === "..") {
+                    let backCount = 1;  // 默认为 ..情况 只退一级目录
+                    if (pos.indexOf('../') > -1) {  // 如果有../ 说明可能会回退 多次目录
+                        backCount = -1;
+                        pos.split('../').forEach((one) => {
+                            if (one === "") {
+                                backCount++
+                            }
+                        });
+                    }
+
+                    let sarr = nowdir.split("/");
+                    sarr.shift();
+                    while (backCount >= 1) {
+                        const wb = sarr.pop();
+                        if (!wb) {
+                            sarr.pop();
+                        }
+                        backCount--;
+                    }
+
+                    realpos = "/" + sarr.join('/');
+                } else if (pos.indexOf('/') !== 0 || pos.indexOf('/') === -1) {  //cd www www/add
+                    realpos = realpos + '/' + pos;
+                } else {
+                    realpos = pos;
+                }
+
+                return realpos;
+            }
+
+            if (command === 'cd') {
+                nowdir = wordsList.join("");
+                nowdirppp.innerText = nowdir;
+                command = 'ls';
+            }
+            if (command === 'pwd') {
+                // document.getElementById('codeStr').innerText = nowdir;
+                forMatedShow(nowdir);
+                return false;
+            }
+
+            // 拼接处理后的命令
+            // cmdStr = `${command} ${opts.join(" ")} ${wordsList.join(" ")}`;
+
+            let cmdArr = [command].concat(wordsList);
+            // console.log(cmdArr);
+
+            optsArr.forEach((oneOpt)=>{
+                cmdArr.splice(oneOpt.idx, 0, oneOpt.val)
+            });
+            cmdStr = cmdArr.join(" ");
+            console.log(cmdStr);
+
+            return cmdStr;
+        }
+
+        function runCmd(str) {
+            const f1str = str.split(' ');
+            const varList = f1str.filter((one) => (Boolean(one) === true));
+            const first = varList[0];
+            document.getElementById('cmdStr').value = "";
+            $.ajax({
+                url: "/deployCode/runcmd",
+                type: "POST",
+                dataType: 'json',
+                data: {cmd: str},
+                success: function (data) {
+                    // console.log(data);
+                    let resStr = data.data;
+                    if (data.result === 'FALSE') {
+                        resStr = data.msg;
+                    }
+                    if (resStr) {
+                        if (first === 'ls') {
+                            forMatedShow(resStr);
+                        } else {
+                            document.getElementById('codePool').innerHTML = `<pre>${resStr}</pre>`;
+                        }
+                    } else if (first === 'ls') {
+                        document.getElementById('codePool').innerHTML = `<pre>---Empty---</pre>`;
+                    }
+
+                    document.getElementById('cmdStr').focus();
+                }
+            })
+        }
+
+
+        function upFileAsync(nowFile) {
+            let targetDir = nowdir;
+
+            console.log(nowFile);
+            if (!nowFile) {
+                return alert('请选择文件!');
+            }
+            if (targetDir.split("").pop() !== '/') {
+                targetDir = targetDir + '/';
+            }
+
+            let fname = nowFile.name;
+            const size = nowFile.size;
+
+            const res = window.confirm(`确定上传：${fname} ?`);
+            if (!res) {
+                console.log('nonono');
+                return false;
+            }
+            document.getElementById('pfa').style.opacity = 1;
+            document.getElementById('nowFileName').innerText = fname + " 上传中...";
+
+            const oneChunk = 1024 * 1024 * 0.9; // 0.9 MB 一片
+            const ajaxCount = Math.ceil(size / oneChunk);
+            console.log(ajaxCount);
+
+            let succeed = 0;
+            uploadChunk();
+
+
+            function uploadChunk() {
+                const start = oneChunk * succeed;
+                const end = Math.min(size, start + oneChunk);
+                const splited = nowFile.slice(start, end);
+                console.log(splited);
+
+                let form = new FormData();
+                form.append("data", splited);  //file对象的slice方法用于切出文件的一部分
+                form.append("name", fname); //总片数
+                form.append("total", ajaxCount); //总片数
+                form.append("index", succeed); //当前是第几片
+                $.ajax({
+                    url: "/deployCode/upTings",
+                    type: "POST",
+                    data: form,
+                    async: true,
+                    processData: false,
+                    contentType: false,
+                    success: function () {
+                        succeed++;
+                        changeJinDu(succeed / ajaxCount * 100);
+                        if (succeed === ajaxCount) {
+                            noticeMerge({
+                                fname: fname,
+                                newName: fname,
+                                targetDir: targetDir
+                            });
+                        } else {
+                            uploadChunk();
+                        }
+                    }
+                })
+            }
+
+
+            function noticeMerge(data) {
+                $.ajax({
+                    url: "/deployCode/mergeFile",
+                    type: "POST",
+                    data: data,
+                    success: function () {
+                        console.log('---merge----ok---');
+                        cleanProGress();
+                        document.getElementById('nowFileName').innerText = fname + " 上传成功！";
+                        document.getElementById('pfa').style.opacity = 0;
+
+                        runCmd(`ls ${nowdir}`);
+                    }
+                })
+            }
+
+            const progress_bar = document.getElementById('progress');
+
+            function changeJinDu(percent) {
+                progress_bar.style.width = percent + '%';
+            }
+
+            function cleanProGress() {
+                progress_bar.style.width = 0 + 'px';
+            }
+        }
+
+        function forMatedShow(strList) {
+            const codePool = document.getElementById('codePool');
+            codePool.innerHTML = "";
+
+            const pageSize = 35;
+            let listArr = strList.split('\n');
+
+            let theArr = [];
+            cut();
+
+            function cut() {
+                theArr.push(listArr.splice(0, pageSize));
+                if (listArr.length) {
+                    cut();
+                }
+            }
+
+            for (const oneArr of theArr) {
+                const thePreEl = document.createElement('pre');
+                thePreEl.innerText = oneArr.join('\n');
+                codePool.appendChild(thePreEl);
+            }
+
+
+        }
+    };
+
+
+</script>
+</body>
+</html>

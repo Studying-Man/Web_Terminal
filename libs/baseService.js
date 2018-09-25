@@ -1,66 +1,37 @@
-
-require('./mongodb.js');
-var redis = require('./redis.js').redisClient;
-var FileRedisClient = require('./redis.js').fileRedisClient;
-var loader = require('./loadConfig.js');
-
-const oplog =  require('./oplog.js');
-
-var RESULT_TRUE = 'TRUE';
-var RESULT_FALSE = 'FALSE';
-var need_encrypt = require(loader.configFile)[loader.projectName].need_encrypt;
+let RESULT_TRUE = 'TRUE';
+let RESULT_FALSE = 'FALSE';
 
 class BaseService {
     constructor() {
-        this.redis = redis;
-        this.RedisFileServer = FileRedisClient;
-        this.restSuccess = restSuccess;
-        this.restError = restError;
+        this.restSuccess = resSuccess;
+        this.restError = resError;
     }
 }
 
-/**
- * 处理成功返回
- */
-function restSuccess(res, data, other_datas) {
-    var result = { result: RESULT_TRUE };
-    if (data) {
+function resSuccess(res, data, other_data) {
+    let result = {result: RESULT_TRUE};
+    if(data){
         result.data = data;
     }
-    if (other_datas) {
-        for (var key in other_datas) {
-            if (other_datas.hasOwnProperty(key)) {
-                result[key] = other_datas[key];
+    if(other_data && other_data instanceof Object){
+        for(let attr in other_data){
+            if(other_data.hasOwnProperty(attr)){
+                result[key] = other_data[key];
             }
         }
     }
-    if (need_encrypt) {
-        result = utils.encodeResult(JSON.stringify(result));
-        rest(res, { encode_str: result });
-    } else {
-        rest(res, result);
-    }
-    //记录日志用
-    oplog.record(res.logparams,result);
+    rest(res, result);
 }
 
-/**
- * 处理错误返回
- */
-function restError(res, err_code, err_msg) {
-    var result = { result: RESULT_FALSE };
-    if (err_code) {
-        result.errorcode = err_code;
+function resError(res, err_code, err_msg) {
+    let result = { result: RESULT_FALSE };
+    if(err_code){
+        result.errorCode = err_code;
     }
-    if (err_msg) {
+    if(err_msg){
         result.msg = err_msg;
     }
-    if (need_encrypt) {
-        result = utils.encodeResult(JSON.stringify(result));
-        rest(res, { encode_str: result });
-    } else {
-        rest(res, result);
-    }
+    rest(res, result);
 }
 
 function rest(res, data) {

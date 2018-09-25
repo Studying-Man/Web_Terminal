@@ -6,6 +6,8 @@ let path = require('path');
 let moment = require('moment');
 let importer = require('./libs/importer')();
 
+app.use('/',express.static(__dirname + '/public'));
+
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
     res.header("Access-Control-Allow-Headers", "Content-Type,Content-Length, Authorization, Accept,X-Requested-With, x-json-web-token, copany_id, custom-company-id");
